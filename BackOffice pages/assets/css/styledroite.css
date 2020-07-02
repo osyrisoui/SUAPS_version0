@@ -38,8 +38,23 @@ h1, h2, h3, h4, h5, h6 {
   background: #040b14;
   overflow-y: auto;
   opacity: 90%;
-
 }
+
+#header1 .icones{
+  visibility: visible;
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  right: 140px;
+  top: 560px;
+}
+
+
+
+#header1 .icones .icone {
+  margin:4px
+}
+
 
 #header1 .profile img {
   margin: 15px auto;
@@ -142,3 +157,42 @@ option{
 .nav-menu a:hover i, .nav-menu .active > a i, .nav-menu li:hover > a i {
   color: #149ddd;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
