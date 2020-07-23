@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/SUAPS.iml" filepath="$PROJECT_DIR$/.idea/SUAPS.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/suaps_legacy.iml" filepath="$PROJECT_DIR$/.idea/suaps_legacy.iml" />
     </modules>
   </component>
 </project>

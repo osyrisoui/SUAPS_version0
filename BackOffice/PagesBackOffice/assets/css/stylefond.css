@@ -1,0 +1,27 @@
+.contenu{
+    border: 2px solid white;
+    margin: 20px;
+    margin-left: 220px;
+    margin-top: 20px;
+    width: 1000px;
+    height: 1000px;
+    color: white;
+    text-align: center;
+}
+.contenu hr{
+    margin:auto;
+}
+.contenu .detail_inscri {
+    margin: 20px;
+    display: block;
+    background-position: center center;
+    overflow: auto;
+}
+
+.contenu .page_liste_cours {
+    margin: 20px;
+    display: block;
+    background-position: center center;
+    overflow: auto;
+    opacity: 70% ;
+}

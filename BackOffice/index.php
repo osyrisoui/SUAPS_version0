@@ -1,242 +1,545 @@
 <?php
-echo "
+# 01-06-2005 PG => mise en place de la gestion des centres et des droits
+# 02-06-2005 PG => modif de l'adresse de redirection si on ne récupère pas les var de session
+# 06-06-2005 PG => Passage de l'offre de formation en variable de session 
+# 23-06-2005 PG => Enlevé le test sur la variable d'environnement adminuel => vérif faite dans la base
+# 25-08-2005 PG => Affiche l'année et le semestre de l'offre courante, sinon l'année et le semestre selon la date 
+# 01-09-2005 PG => utf8_decode du displayname
 
-<!DOCTYPE html>
-<html lang='en'>
+session_start();
+$first_CAS = "";
+if (!isset ($_SESSION["nocas"])) {
+    // ici je dois faire du cas (on n'est paps passé par index_nocas.php)
+    # 25-11-2008 PG => ne fait du cas que au premier tour
+    if (!isset ($_SESSION["casuid"])) {
+        // si la variable casuid n'est pas initialisée
+        #require_once "../utils/auth_cas.php";
+        include dirname(__DIR__) . "/utils/auth_cas.php";
+        $CasUid = phpCAS::getUser();
+        $_SESSION["casuid"] = $CasUid;
+        $first_CAS = "oui";
+        //echo "<h1>CAS</h1>";
+    } else {
+        //$CasUid =$_SESSION[casuid];
+        //echo "<h1>$CasUid lu en session</h1>";
+    }
+} else {
+    //echo "<h1>auth LDAP</h1>";
+}
+# 12/05/2020 PG => utilisation de __DIR__
+require(dirname(__DIR__) . "/utils/variables_globales.php");
+include dirname(__DIR__) . "/utils/outils_apogee.php";
+include dirname(__DIR__) . "/utils/outils_bd.php";
+include dirname(__DIR__) . "/utils/outils_ldap.php";
+include dirname(__DIR__) . "/utils/outils_xhtml.php";
+include dirname(__DIR__) . "/utils/outils_mail.php";
+include dirname(__DIR__) . "/utils/outils_bd_BackOffice.php";
+require(dirname(__DIR__) . "/utils/class.php");
+# 12-11-2009 PG ouverture syslog
+opensyslog();
+if (isset($_SESSION["casuid"])) {
+    @syslog(LOG_WARNING, "Connexion BO : " . $_SESSION["casuid"]);
+}
+
+
+#
+#  init variables
+#
+$selecteddebug_1 = $selecteddebug_2 = $selecteddebug_3 = $selecteddebug_4 = $selecteddebug_5 = "";
+$selectedtours = $selectedtesttours = "";
+$Offres = array();
+$id_offre = "";
+$bouton_html_historique = "";
+
+###########
+##  Recup des variables
+##########
+foreach ($_POST as $VARName => $VARVal) {
+    #echo "variables trouvées : $VARName => $VARVal<br>";
+    $TabChaine = explode("_", $VARName);
+    $variable = array_shift($TabChaine);
+    $x = array_pop($TabChaine);
+    $valeur = implode(" ", $TabChaine);
+    if ($x == "x") {
+        $$variable = $valeur;
+        debug("création de la variable :$variable : " . $$variable, 5);
+    }
+}
+
+# 18-06-2008 PG => gestion de la variable de session historique
+#
+#  id_offre
+#
+if (isset($Historique)) {
+    $_SESSION ["Historique"] = $Historique;
+}
+
+if (isset($_POST["id_offre"])) {
+    if (!isset($_SESSION["id_offre"])) {
+        $_SESSION["id_offre"] = $_POST["id_offre"];
+        debug("creation de id offre en session: " . $_SESSION["id_offre"], 5);
+    } else {
+        if ($_SESSION["id_offre"] != $_POST["id_offre"]) {
+            $_SESSION["id_offre"] = $_POST["id_offre"];
+            debug("reecriture de id offre S: " . $_SESSION["id_offre"] . " P : " . $_POST["id_offre"], 5);
+        }
+    }
+}
+# init de la variable locale
+if (isset($_SESSION["id_offre"])) {
+    $id_offre = $_SESSION["id_offre"];
+}
+
+#
+#  id_activite
+#
+$id_activite = "";
+if (isset ($_POST["id_activite"])) {
+    if (isset($_SESSION['id_activite'])) {
+        if ($_POST["id_activite"] != $_SESSION["id_activite"]) {
+            $_SESSION["id_activite"] = $_POST["id_activite"];
+            debug("reecriture de id activite S: " . $_SESSION["id_activite"] . " P : " . $_POST["id_activite"], 1);
+        }
+    } else {
+        $_SESSION["id_activite"] = $_POST["id_activite"];
+    }
+}
+# init de la variable locale
+if (isset ($_SESSION["id_activite"])) {
+    $id_activite = $_SESSION["id_activite"];
+}
+
+###########################################
+#   FONCTIONS SPECIFIQUES DE LA PAGE
+###########################################
+
+function IncludeContenuPageBO($FichierPage)
+{
+    // IncludeContenuPageBO("PagesBackOffice/$page->contenu");
+    // Inclusion de la page
+    if (include("PagesBackOffice/$FichierPage->contenu")) {
+        debug("chargement du contenu de la page", 5);
+        debug("fichier de la page : ", 5);
+        debug($FichierPage->contenu, 5);
+    } else {
+        debug("pas de contenu : chargement de l'accueil", 'syslog');
+        include("PagesBackOffice/BackOfficeAccueil.php");
+    }
+}
+
+###########################################
+#             MAIN                  
+###########################################
+
+###
+#  Debuggage
+########
+debug("_POST", 1);
+debug($_POST, 1);
+debug("_GET", 1);
+debug($_GET, 1);
+debug("_SESSION", 1);
+debug($_SESSION, 1);
+
+## selection du centre
+selection_Centre();
+
+#
+# choix de la base mysql
+#
+if (isset($_POST["base"])) {
+    #echo "changement de base: $base<br>";
+    $_SESSION["base"] = $_POST["base"];
+    $base = $_SESSION["base"];
+} elseif (isset ($_SESSION["base"])) {
+    $base = $_SESSION["base"];
+} else {
+    # 12/11/2009 PG => on force la base de test avec le code de test
+    if (preg_match("/test/i", $_SERVER["HTTP_HOST"])) {
+        $base = "testtours";
+    } else {
+        $base = "tours";
+    }
+    $_SESSION["base"] = $base;
+}
+# Choix du style de la balise body pour l'image de fond
+if ($base=="tours") {
+    $selectedtours = "selected";
+    $bodyClass = "";
+} else {
+    $selectedtesttours = "selected";
+    $bodyClass = "class='test'";
+}
+
+#
+# connexion a la base mysql
+#
+bd_connect_mysql($base);
+
+# 25-11-2008 PG => ne fait du cas que au premier tour
+#if ( ($_POST["login"] && $_POST["passwd"]) || $_SESSION[casuid] ) {
+if ((isset($_POST["login"]) && isset($_POST["passwd"])) || $first_CAS == "oui") {
+###
+# CONNEXION ET MISE EN SESSION UNIQUEMENT AU PREMIER PASSAGE
+###       
+    if ($first_CAS == "oui") {
+        $login = $_SESSION["casuid"];
+    } else {
+        $login = $_POST["login"];
+        # 29/05/2020 PG => uniquement si on est pas passé par CAS
+        #
+        # authentification sur l'annuaire ldap
+        #
+        connexionUtilisateur($login, $_POST["passwd"]);
+    }
+    #
+    # authentification sur ldap ou récupération d'attributs ldap après récup uid cas
+    # TODO 12/06/2020 ne faire ça que si on ne vient pas de CAS
+    $mdp = "";
+    # si on vient de index_nocas.php alors on fait du bind ldap sinon on netransmet que le login
+    if (isset($_POST["passwd"])) $mdp = $_POST['passwd'];
+    connexionUtilisateur($login, $mdp);
+
+    # on peut passer des arguments par get sur le front office (pour se mettre à la place des étudiants)
+# 27-06-2006 PG => mis $_SESSION[getOK] pour eviter le register global (permet de passer sur le FO depuis le BO
+    $_SESSION["getOK"] = "oui";
+#	session_register("getOK");
+}
+
+#if ($_SESSION[login] && $_SESSION[mdp] && $_SESSION[adminuel]) {
+if ((isset($_SESSION["login"]) && isset($_SESSION["mdp"])) || isset($_SESSION["casuid"])) {
+###
+# SI ON EST CONNECTE passage N+1  ou CAS
+###       	
+
+# 14-09-2007 PG => modif pour se passer de index.php après le CAS
+## Si le centre existe en post et que l'on est SA on le prend sinon on prend la variable de session, si elle n'est pas OK on regarde l'url
+    if (isset($_POST["centre"]) && isset($_SESSION["profil"])) {
+        if (PouvoirIsSA($_SESSION["profil"])) {
+            #echo "recup du centre dans la variable POST";
+            $_SESSION["centre"] = $_POST["centre"];
+            $_SESSION["centrealt"] = $_POST["centre"];
+        }
+    } elseif (isset($_SESSION["centrealt"])) {
+        #echo "recup du centre dans la variable SESSION centre alternatif";
+        $_SESSION["centre"] = $_SESSION["centrealt"];
+    } else {
+        #echo "recup du centre dans l'url $_SESSION[centre]";
+        if (preg_match("/suaps/i", $_SERVER["HTTP_HOST"])) $_SESSION["centre"] = "SUAPS";
+        if (preg_match("/uel/i", $_SERVER["HTTP_HOST"])) $_SESSION["centre"] = "SEVE";
+    }
+
+#
+#  choix de la css
+######
+
+    $cssfile = "style/" . select_CentreGestionCSS($_SESSION["centre"]);
+
+################ Selection du Niveau de DEBUG #############
+# 23-05-2006 PG => correction pour register_globals=off
+# si le niveau de debug passe est différent de celui en session
+    if (isset($_POST["debug_level"])) {
+        if (isset($_SESSION["debug_level"])) {
+            if ($_POST["debug_level"] != $_SESSION["debug_level"]) {
+                $_SESSION["debug_level"] = $_POST["debug_level"];
+            }
+        } else {
+            $_SESSION["debug_level"] = $_POST["debug_level"];
+        }
+    }
+    if (isset ($_SESSION["debug_level"])) {
+        # on récupère le niveau de debug dans la variable de session
+        $debug_level = $_SESSION["debug_level"];
+        $varname = "selecteddebug_$debug_level";
+        $$varname = "selected";
+        #echo "$varname =>  ".$$varname."<br>";
+    }
+# 28/05/2020 PG Ajout isset
+    if (isset($_SESSION["profil"])) {
+        if (PouvoirIsSA($_SESSION["profil"])) {
+            $celluledebug = "
+                 <select name=\"debug_level\"  onChange=\"document.form2.submit()\">
+                    <option value=\"off\" >debug off</option>
+                    <option value=\"1\" $selecteddebug_1>niveau 1</option>
+                    <option value=\"2\" $selecteddebug_2>niveau 2</option>
+                    <option value=\"3\" $selecteddebug_3>niveau 3</option>
+                    <option value=\"4\" $selecteddebug_4>niveau 4</option>
+                    <option value=\"5\" $selecteddebug_5>niveau 5</option>
+                  </select>
+    ";
+        }
+    }
+################ fin DEBUG #############
+
+################ choix centre #############
+# 28/05/2020 PG Ajout isset
+    if (isset($_SESSION["profil"])) {
+        if (PouvoirIsSA($_SESSION["profil"])) {
+            $AfficheCentreHTML = ListeDeroulantePG("centre", selectCentres(), $_SESSION["centre"], "OnChange=\"this.form.submit()\"");
+        } else {
+            $AfficheCentreHTML = "";
+        }
+    }
+################ fin choix centre #############
+
+################ Choix de la base de données ######
+# 28 jan 2009 PG => demo
+    if ($_SESSION["login"] == "testsuaps") {
+        $SelectBase = ChampFormulaire('hidden', 'base', 'demo', '');
+    } else {
+        $SelectBase = $AfficheCentreHTML
+            . "<select name=\"base\"  onChange=\"document.form2.submit()\">"
+            . "<option value=\"tours\"  $selectedtours;>Base De Prod.</option>"
+            . "<option value=\"testtours\" $selectedtesttours>Base De test</option>"
+            . "</select>"
+            . $celluledebug;
+    }
+################ fin Choix de la base ######
+
+################ Offres de formations ###########
+# 18-06-2008 PG => historique
+# gestion de l'historique des offres de formation
+
+    if (isset ($_SESSION["Historique"])) {
+        if ($_SESSION["Historique"] == "on") {
+            $bouton_html_historique = BoutonImage("Historique", "off", "images/history_clear.png", "16", "Desactiver Historique", "");
+            $Offres = selectAlloffres();
+        }
+    } else {
+        $bouton_html_historique = BoutonImage("Historique", "on", "images/history.png", "16", "Activer Historique", "");
+        $Offres = selectAlloffres(CalculAnneeScolaire());
+    }
+# on ajoute une ligne en début de liste
+    array_unshift($Offres, array("-", "------------------------"));
+################  fin Offres ###########
+
+############### Calcul du semestre de l'offre ##########
+    if (isset ($_SESSION["id_offre"])) {
+        if (CalculSemestre($_SESSION["id_offre"]) == "S1") {
+            $infoSemestre = CalculAnneeScolaire($_SESSION["id_offre"]) . "<br>Semestre 1";
+        }
+        if (CalculSemestre($_SESSION["id_offre"]) == "S2") {
+            $infoSemestre = CalculAnneeScolaire($_SESSION["id_offre"]) . "<br>Semestre 2";
+        }
+    } else {
+        $infoSemestre ="" ;
+    }
+############### fin calcul du semestre  ##########
+
+################ debut choix activite #############
+    $Activites = array();
+# si l'offre est choisie on cherche les activités lies aux cours de l'offre
+    if ($id_offre) {
+        $Activites = selectActiviteAvecOffre($id_activite, $id_offre);
+    }
+# on ajoute une ligne en début de liste
+    array_unshift($Activites, array("-", "------------------------"));
+# 08-09-2005 PG => affiche "toutes les activités pour les droits de type A ou SA SPORT
+# 28/05/2020 PG Ajout isset
+    if (isset($_SESSION["profil"])) {
+        if (PouvoirIsA($_SESSION["profil"])) {
+            array_unshift($Activites, array("toutes", "Toutes les " . $GLOBALS["config"]["libelles"]["UEnames"][$_SESSION["centre"]]));
+            array_unshift($Activites, array("-", "------------------------"));
+        }
+    }
+################ fin choix activite #############
+
+###### Calcul du bloc html des listes déroulantes offres et activités ####
+    $celluleoffres_activite = BlocCentre(
+        tableau("sansbordure", "", "",
+            ligne("",
+                affichecellule("",
+                    tableau("", "", "",
+                        ligne("",
+                            affichecellule("",
+                                ListeDeroulanteTitre('id_offre', $Offres, $id_offre, "Choisissez une Offre de Formation", "OnChange=\"this.form.submit()\"", 'non'))
+                            . affichecellule("", $bouton_html_historique)
+                        )
+                    )
+                ) .
+                affichecellule("",
+                    tableau("", "", "",
+                        ligne("",
+                            affichecellule("",
+                                ListeDeroulanteTitre('id_activite', $Activites, $id_activite, "Choisissez une " . $GLOBALS["config"]["libelles"]["UEname"][$_SESSION["centre"]], "OnChange=\"this.form.submit()\"", 'non'))
+                        )
+                    #)
+                    )
+                )
+            )
+        )
+    );
+###################################
+####
+####      Page Cible
+####
+###################################
+## Si la cible existe en post on la prend sinon on prend la variable en get
+    if (isset($_POST["cible"])) {
+        if ($_POST["cible"] != $_SESSION["cible"]) {
+            $cible = $_POST["cible"];
+            $_SESSION["cible"] = $_POST["cible"];
+        }
+    } elseif (isset($_GET["cible"])) {
+        $cible = $_GET["cible"];
+        $_SESSION["cible"] = $_GET["cible"];
+    }
+
+    if (isset($_SESSION["cible"])) {
+        $cible = $_SESSION["cible"];
+    } else {
+        $cible = "";
+    }
+
+### chargment de l'objet page
+#    Recheche en base (table pages)
+    $page = new Page($cible);
+#    $this->lib_page = $row['lib_page'];
+#    $this->titre = $row['titre'];
+#    $this->contenu = $row['contenu'];
+#    $this->infoBulle = $row['infoBulle'];
+#    $this->num_page = $row['num_page'];
+
+    if (isset($page->titre)) {
+        $titrePage = $page->titre;
+        $BoutonAidePage = BoutonAide($page->titre);
+    } else {
+        $titrePage = "";
+        $BoutonAidePage = "";
+    }
+
+    if (isset($_SESSION["cible"])) {
+        $infoImprimante = "	<td>
+            <a href=\"#?cible=" . $_SESSION["cible"] . "\" onClick=\"window.print()\"> <img width=\"40\" src=\"/BackOffice/images/imprimante.gif\" border=\"0\"> </a>
+            </td>
+        ";
+    } else {
+        $infoImprimante = "";
+    }
+    if (isset($page->titre)) syslog(LOG_WARNING, infosyslog() . "-" . $_SESSION["DisplayName"] . " -" . removeaccents($page->titre));
+
+#### Footer
+# 02-07-2008 PG => affichage du nom de noeud
+    if (isset ($GLOBALS["config"]["nomNoeud"][$_SERVER["SERVER_ADDR"]])) {
+        $divFooter = "
+         <div id=\"footer\"> <span>" . $GLOBALS["config"]["nomNoeud"][$_SERVER["SERVER_ADDR"]] . "</span>
+         </div>
+         ";
+    } else {
+        $divFooter = "";
+    }
+
+##
+#
+# Affichage du code html  #
+#
+##
+
+    echo "
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN'
+        'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html>
 <head>
-    <meta charset='UTF-8'>
-    <title>navigation bar</title>
-    <link href='https://fonts.googleapis.com/css?family=Roboto+Condensed:300,300i,400,400i,700i' rel='stylesheet'>
-    <link href='https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Raleway:300,300i,400,400i,500,500i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i' rel='stylesheet'>
+    <title> " . $page->titre . " </title>
+    
+    <meta http-equiv='Content-Type' content='text/html; charset=iso-8859-1'/>
+    <link rel='stylesheet' href='$cssfile'>
+    <script language='JavaScript' type='text/javaScript' src='style/javascript.js'></script>
+    <script type='text/javascript' src='calendrier_js/calendarDateInput.js'></script>
 
-    <link href='assets/vendor/bootstrap/css/bootstrap.min.css' rel='stylesheet'>
-    <link href='assets/vendor/boxicons/css/boxicons.min.css' rel='stylesheet'>
-
-    <link href='assets/css/styledroite.css' rel='stylesheet'>
-    <link href='assets/css/stylegauche.css' rel='stylesheet'>
-
-
-
-
+    <link rel='stylesheet' href='/BackOffice/jquery/jquery-ui.css'/>
+    <script src='/BackOffice/jquery/jquery-1.8.3.js'></script>
+    <script src='/BackOffice/jquery/jquery-ui.js'></script>
+    <script src='/BackOffice/jquery/jquery-ui.datepicker-fr.js'></script>
+    <script>
+        $(function () {
+            $('#datepicker1').datepicker();
+        });
+        $(function () {
+            $('#datepicker2').datepicker();
+        });
+    </script>
+    <script src='style/postMessage-resize-iframe-in-parent.js' type='text/javascript'></script>
 </head>
 
-<body>
+<body $bodyClass>
+<div id='container'>
+    <div id='content'>
+        <table width='100%' border='0' cellspacing='0' cellpadding='3' class='sansbordure'>
+            <form name='form2' method='post' action='" . $_SERVER['PHP_SELF'] . "'>
+                <tr>
+                    <td align='center' class='title'
+                        cellpadding='2'> $titrePage 
+                        &nbsp; $BoutonAidePage </td>
+                    <td style='margin:0;padding:0;'> $celluleoffres_activite </td>
+                    <td width='10%' align='center' class='titre'>
+                        $infoSemestre
+                    </td>
+                    $infoImprimante
+                    <td width='320' align='right' style='margin:0;padding:0;'>
+                        <table class='sansbordure'>
+                            <tr>
+                                <td align='right' style='margin:0;padding:0;'>
+                                    <div id='transparency'>Bonjour" . $_SESSION["DisplayName"] . " &nbsp;&nbsp;
+                                       <a href='destroy_session_cas_BO.php'> 
+                                       <img align='top' src='/images/exit.gif' width='18' border='0'></a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td align='right'> $SelectBase</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </form>
+            <tr>
+                <td align='center' colspan='6' style='margin:0;padding:0;'>" . FaitMenuNEW($cible) . "</td>
+            </tr>
+            <tr>
+                <td align='center' colspan='6'>
+                ";
+                if (!include("PagesBackOffice/$page->contenu")) {
+                    debug("pas de contenu : chargement de l'accueil", 'syslog');
+                    include("PagesBackOffice/BackOfficeAccueil.php");
+                } else {
+                    debug("chargement du contenu de la page", 5);
+                }
 
-<form name='form2' method='post' action='/BackOffice/index.php'>
-
-<!-- Debut menu de gauche -->
-<header class='header' >
-    <nav class='navigation'>
-        <section class='logo'></section>
-        <section class='navigation__icon'>
-            <span class='topBar'></span>
-            <span class='middleBar'></span>
-            <span class='bottomBar'></span>
-        </section>
-        <ul class='navigation__ul'>
-            <li><a href='BackOffice.php?cible=Gestion des Inscriptions' title='Gestion des Inscriptions'>Gestion des Inscriptions</a></li>
-            <li><a href='BackOffice.php?cible=Parcours Etudiant' title='Parcours Etudiant'>Parcours Etudiant</a></li>
-            <li><a href='BackOffice.php?cible=Détail des Cours' title='Détail des Cours'>Détails des Cours</a></li>
-            <li><a href='BackOffice.php?cible=Liste des Cours' title='Liste des Cours'>Liste des cours</a></li>
-            <li><a href='BackOffice.php?cible=Notation' title='Notation'>notation</a></li>
-            <li><a href='BackOffice.php?cible=Notation EMA' title='Notation EMA'>notation ema</a></li>
-            <li><a href='BackOffice.php?cible=Envoi de mails' title='Envoi de mails'><>Envoi d'Email</a></li>
-            <li><a href='BackOffice.php?cible=Edition des Pages' title='Edition des Pages'>Envoi des pages</a></li>
-            <li><a href='BackOffice.php?cible=Gestion des messages' title='Gestion des messages'>Gestion des messages</a></li>
-            <li><a href='BackOffice.php?cible=Cas Particuliers' title='Inscription des étudiants non-UFR & personnels.'>Cas particuliers</a></li>
-            <li><a href='BackOffice.php?cible=Ajout des cours' title='Ajout des cours'>Ajout des cours</a></li>
-            <li><a href='BackOffice.php?cible=Gestion de la base' title='Gestion de la base'>Gestion de la base</a></li>
-            <li><a href='BackOffice.php?cible=Statistiques' title='Extractions et Statistiques'>Statistiques</a></li>
-        </ul>
-        <section class='logo_en_bas' >
-            <img src='assets/img/logo_sport.jpg'>
-        </section>
-        <section class='logo_en_bas2' >
-            <img src='assets/img/logo_sport2.jpg'>
-        </section>
-        <section class='logo_en_bas3' >
-            <img src='assets/img/logo_sport3.jpg'>
-        </section>
-    </nav>
-</header>
-<!-- Fin menu de gauche -->
-
-<!-- Debut menu de droite -->
-<header id='header1'>
-    <div class='d-flex flex-column'>
-        <div class='profile'>
-            <img src='assets/img/logo.jpg' alt='' class='img-fluid rounded-circle'>
-            <br>
-            <h4 class='text-light'><a href='index.html'>~ <span>Application SUAPS</span> ~</a></h4>
+                # 20-06-2008 PG => affichage des erreurs
+                if (isset($_SESSION["error"])) {
+                    $divError = "
+                            <div id='alert'> 
+                                <span>" . $_SESSION["error"] . "</span>
+                            </div>
+                        ";
+                    unset ($_SESSION["error"]);
+                } else {
+                    $divError = "";
+                }
+    echo "
+                </td>
+            </tr>
+        </table>
+        <!--  Div Erreur -->
+        $divError
+        <!--  fin de la div de contenu de la page -->
         </div>
-        <div class='icones'>
-            <div class='icone' href='destroy_session_cas_BO.php'><img width='30' src='assets/img/deconnexion.jpg'  border='0'></div>
-            <div class='icone' href='/BackOffice/MOE/ME_BO_Detail_cours_1.htm'><img width='30' border='0' src='assets/img/info.gif'></div>
-            <div class='icone' href='#?cible=Détail des Cours' onClick='window.print()'> <img width='30' src='assets/img/imprimante.jpg'></div>
-        </div>
-        <br><hr>
-
-        <nav class='nav-menu'>
-            <ul>
-                <li><a><span>Choisissez une offre de formation</span></a></li>
-                <select name='id_offre' OnChange='this.form.submit()' id='formation'>
-                    <option type='text' value='' selected>- Suivant les promotions -</option>
-                    <optgroup label='promotion 2019-2020'></optgroup>
-                    <option type='text' value='143'>Cours Blois S1</option>
-                    <option type='text' value='145'>Cours Blois S2</option>
-                    <option type='text' value='142'>Cours Tours S1</option>
-                    <option type='text' value='144'>Cours Tours S2</option>
-                    <option type='text' value='140'>Stage nature</option>
-                    <option type='text' value='141'>Offre CVEC</option>
-                    <optgroup label='promotion 2020-2021'></optgroup>
-                    <option type='text' value='143'>Cours Blois S1</option>
-                    <option type='text' value='143'>Cours Blois S2</option>
-                    <option type='text' value='143'>Cours Tours S1</option>
-                    <option type='text' value='143'>Cours Tours S2</option>
-                    <option type='text' value='143'>Stages</option>
-                    <option type='text' value='143'>Evénements</option>
-                </select>
-                <li><a><span>Choisissez une Activité</span></a></li>
-                <select name='id_activite' OnChange='this.form.submit()' id='activite'>
-                    <option type='text' value='toutes' selected>- Toutes les activités -</option>
-                    <option type='text' value='SUAPS_1'>Badminton</option>
-                    <option type='text' value='SUAPS_2'>Tennis</option>
-                    <option type='text' value='SUAPS_7'>Boxe Anglaise</option>
-                    <option type='text' value='SUAPS_8'>Nage avec Palmes</option>
-                    <option type='text' value='SUAPS_9'>Escalade</option>
-                    <option type='text' value='SUAPS_10'>Karaté</option>
-                    <option type='text' value='SUAPS_11'>Judo</option>
-                    <option type='text' value='SUAPS_12'>BNSSA</option>
-                    <option type='text' value='SUAPS_13'>Jujitsu - Self Défense</option>
-                    <option type='text' value='SUAPS_17'>Fitness - Remise en Forme</option>
-                    <option type='text' value='SUAPS_19'>Aïkido</option>
-                    <option type='text' value='SUAPS_20'>Escrime</option>
-                    <option type='text' value='SUAPS_26'>Boxe Française - Savate</option>
-                    <option type='text' value='SUAPS_27'>Musculation</option>
-                    <option type='text' value='SUAPS_28'>Natation</option>
-                    <option type='text' value='SUAPS_29'>Tennis de Table</option>
-                    <option type='text' value='SUAPS_31'>Taïso Self Défense</option>
-                    <option type='text' value='SUAPS_32'>Athlétisme</option>
-                    <option type='text' value='SUAPS_34'>Activités Aquatiques Multisports</option>
-                    <option type='text' value='SUAPS_36'>Roller</option>
-                    <option type='text' value='SUAPS_39'>Aquagym</option>
-                    <option type='text' value='SUAPS_40'>Ultimate-Frisbee</option>
-                    <option type='text' value='SUAPS_42'>Plongée</option>
-                    <option type='text' value='SUAPS_43'>Rugby</option>
-                    <option type='text' value='SUAPS_45'>Arts du Cirque (Jonglerie)</option>
-                    <option type='text' value='SUAPS_47'>Squash</option>
-                    <option type='text' value='SUAPS_48'>Volley-Ball</option>
-                    <option type='text' value='SUAPS_50'>Modern'Jazz</option>
-                    <option type='text' value='SUAPS_51'>Gymnastique Sportive</option>
-                    <option type='text' value='SUAPS_54'>Basket-Ball</option>
-                    <option type='text' value='SUAPS_56'>Golf</option>
-                    <option type='text' value='SUAPS_57'>Danse Contemporaine</option>
-                    <option type='text' value='SUAPS_64'>Randonnée pédestre</option>
-                    <option type='text' value='SUAPS_70'>Football</option>
-                    <option type='text' value='SUAPS_71'>Handball</option>
-                    <option type='text' value='SUAPS_73'>Stage danse - rythmons nos week-ends</option>
-                    <option type='text' value='SUAPS_75'>Théâtre Impro</option>
-                    <option type='text' value='SUAPS_76'>Kizomba Afro House - Semba</option>
-                    <option type='text' value='SUAPS_80'>Bloc Escalade</option>
-                    <option type='text' value='SUAPS_81'>YogaDanse</option>
-                    <option type='text' value='SUAPS_82'>Marche nordique</option>
-                    <option type='text' value='SUAPS_86'>Stage bien-être - détente à la BU</option>
-                    <option type='text' value='SUAPS_87'>Aquaphobe</option>
-                    <option type='text' value='SUAPS_88'>Stage padel tennis</option>
-                    <option type='text' value='SUAPS_89'>Stage beach volley</option>
-                    <option type='text' value='Trail'>Trail</option>
-                    <option type='text' value='AtelierDanseCreation'>Danse Création Vidéo</option>
-                    <option type='text' value='Breakdance'>Break dance</option>
-                    <option type='text' value='Capoeira'>Capoeira</option>
-                    <option type='text' value='ContactImprovisation'>Danse Contact</option>
-                    <option type='text' value='Courseapied'>Course à pied</option>
-                    <option type='text' value='DanseAfricaine'>Danse Africaine</option>
-                    <option type='text' value='DanseIndienne'>Danse Indienne</option>
-                    <option type='text' value='Danseorientale'>Danse orientale</option>
-                    <option type='text' value='DanseRocknRoll'>Rock n' Roll</option>
-                    <option type='text' value='DanseTahitienne'>Danse Tahitienne</option>
-                    <option type='text' value='Fitnessavecmachines'>Fitness avec machines</option>
-                    <option type='text' value='HipHop'>Hip Hop</option>
-                    <option type='text' value='IntervalTraining'>Interval Training</option>
-                    <option type='text' value='KravMaga'>Krav Maga</option>
-                    <option type='text' value='Lesgrandsevenements:SoireeBien-Etre'>Les grands évènements : Soirée Bien-Être</option>
-                    <option type='text' value='LindyHop'>Lindy Hop</option>
-                    <option type='text' value='MultisportsHandi-Valides'>Multisports Handi-Valides</option>
-                    <option type='text' value='Nuitssportivesetevenements'>Les grands évènements</option>
-                    <option type='text' value='OxygYinonsnosweekUends'>Stage bien-être - oxygénons nos week-ends</option>
-                    <option type='text' value='Petanque'>Pétanque</option>
-                    <option type='text' value='PETECA'>Pétéca</option>
-                    <option type='text' value='Pratiquedouce'>Pratiques de Bien-Être</option>
-                    <option type='text' value='PrYiparationmentale'>Préparation mentale</option>
-                    <option type='text' value='RPM(RevolutionparMinute)'>Cardio Bike</option>
-                    <option type='text' value='SportsLoisirDimanches'>Sport Loisir Week-End</option>
-                    <option type='text' value='StreetJazz'>Street Jazz</option>
-                </select>
-
-                <br><br><br/><hr><br>
-
-                <li class='active'><a><i class='bx bx-home'></i> <span>Votre Page = Parcours Etudiant</span></a></li>
-
-                <br><br><br><br><br><br><br><br><hr>
-
-                <li><a><i class='bx bx-user'></i> <span >Niveau de débug</span></a></li>
-                <select name='niveau_debug' id='niv_debug'>
-                    <option value='Off'>Debugg Off</option>
-                    <option value='1'>Niveau 1</option>
-                    <option value='2'>Niveau 2</option>
-                    <option value='3' selected>Niveau 3</option>
-                    <option value='4'>Niveau 4</option>
-                    <option value='5'>Niveau 5</option>
-                </select>
-                <li><a><i class='bx bx-book-content'></i> Base de travail</a></li>
-                <select name='base'  onChange='document.form2.submit()'>
-                    <option value='tours'  ;>Base De Prod.</option>
-                    <option alue='testtours' selected>Base de Test</option>
-                </select>
-
-            </ul>
-        </nav>
-    </div>
-</header>
-
-<!-- Fin menu de droite -->
-
-<!-- Start space Script -->
-<script src='https://code.jquery.com/jquery-3.3.1.js'></script>
-<script>
-
-"
-?>
-.
-
-    $(function() {
-        $('.navigation__icon').click(function() {
-            $('.navigation').toggleClass('navigation-open');
-        });
-    });
-
-    $(function () {
-        $('#datepicker1').datepicker();
-    });
-    $(function () {
-        $('#datepicker2').datepicker();
-    });
-
-.
-<?php
-echo "
-?>
-</script>
-</script>
-<!-- Fin space Script -->
-</body>
-</html>
-
-"
-?>
-
-</form>
-
-</body>
-
-</html>
+        $divFooter 
+        <!-- fin du container de la page -->
+        </div>  
+        </body>
+    </html>
+    ";
+} else {
+    # On redirige vesr la page d'acceuil si les variables des sessions ne sont pas récupérées
+    echo "
+                <html>
+                <head>
+                <META HTTP-EQUIV=\"Refresh\" CONTENT=\"0;URL=/BackOffice/\">
+                </head>
+                <body>
+                </body>
+                </html>
+        ";
+}

@@ -2,22 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>navigation bar</title>
-    <link href="https://fonts.googleapis.com/css?family=Roboto+Condensed:300,300i,400,400i,700i" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Raleway:300,300i,400,400i,500,500i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i" rel="stylesheet">
+    <title><!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Accueil</title>
+            <link href="https://fonts.googleapis.com/css?family=Roboto+Condensed:300,300i,400,400i,700i" rel="stylesheet">
+            <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Raleway:300,300i,400,400i,500,500i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i" rel="stylesheet">
 
-    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/vendor/boxicons/css/boxicons.min.css" rel="stylesheet">
+            <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+            <link href="assets/vendor/boxicons/css/boxicons.min.css" rel="stylesheet">
 
-    <link href="assets/css/styledroite.css" rel="stylesheet">
-    <link href="assets/css/stylegauche.css" rel="stylesheet">
+            <link href="assets/css/styledroite.css" rel="stylesheet">
+            <link href="assets/css/stylegauche.css" rel="stylesheet">
+            <link href="assets/css/stylefond.css" rel="stylesheet">
 
-</head>
+        </head>
 
 <body>
+<!---------------------------------------------------------- début container dans le fond -->
+<div class="contenu">Ceci est un test</div>
+<!---------------------------------------------------------- fin container dans le fond -->
 
-<form name='' method='post' action='/BackOffice/index.php'>
-    <!-- Debut menu de gauche -->
+<form name='' method='post' action='/BackOffice/Cas particuliers.html'>
+    <!----------------------------------------------------------------------- Debut menu de gauche -->
     <header class="header" >
         <nav class="navigation">
             <section class="logo"></section>
@@ -27,19 +35,19 @@
                 <span class="bottomBar"></span>
             </section>
             <ul class="navigation__ul">
-                <li><a href="index.php?cible=Gestion des Inscriptions" title="Gestion des Inscriptions">Gestion des Inscriptions</a></li>
-                <li><a href="index.php?cible=Parcours Etudiant" title="Parcours Etudiant">Parcours Etudiant</a></li>
-                <li><a href="index.php?cible=Détail des Cours" title="Détail des Cours">Détails des Cours</a></li>
-                <li><a href="index.php?cible=Liste des Cours" title="Liste des Cours">Liste des cours</a></li>
-                <li><a href="index.php?cible=Notation" title="Notation">notation</a></li>
-                <li><a href="index.php?cible=Notation EMA" title="Notation EMA">notation ema</a></li>
-                <li><a href="index.php?cible=Envoi de mails" title="Envoi de mails"><>Envoi d'Email</a></li>
-                <li><a href="index.php?cible=Edition des Pages" title="Edition des Pages">Envoi des pages</a></li>
-                <li><a href="index.php?cible=Gestion des messages" title="Gestion des messages">Gestion des messages</a></li>
-                <li><a href="index.php?cible=Cas Particuliers" title="Inscription des étudiants non-UFR & personnels.">Cas particuliers</a></li>
-                <li><a href="index.php?cible=Ajout des cours" title="Ajout des cours">Ajout des cours</a></li>
-                <li><a href="index.php?cible=Gestion de la base" title="Gestion de la base">Gestion de la base</a></li>
-                <li><a href="index.php?cible=Statistiques" title="Extractions et Statistiques">Statistiques</a></li>
+                <li><a href="Gestion des Inscriptions.html" id="Gestion des Inscriptions">Gestion des Inscriptions</a></li>
+                <li><a href="Parcours Etudiant.html" id="Parcours Etudiant">Parcours Etudiant</a></li>
+                <li><a href="Détails des cours.html" id="Détails des Cours">Détails des Cours</a></li>
+                <li><a href="Liste des Cours.html" id="Liste des Cours">Liste des Cours</a></li>
+                <li><a href="Notation.html" id="Notation">notation</a></li>
+                <li><a href="Notation EMA.html" id="Notation EMA">notation ema</a></li>
+                <li><a href="Envoi de mails.html" id="Envoi de mails">Envoi d'Email</a></li>
+                <li><a href="Edition des Pages.html" id="Edition des Pages">Envoi des pages</a></li>
+                <li><a href="Gestion des messages.html" id="Gestion des messages">Gestion des messages</a></li>
+                <li><a href="Cas Particuliers.html" id="Inscription des étudiants non-UFR & personnels.">Cas particuliers</a></li>
+                <li><a href="Ajout des cours.html" id="Ajout des cours">Ajout des cours</a></li>
+                <li><a href="Gestion de la base.html" id="Gestion de la base">Gestion de la base</a></li>
+                <li><a href="Statistiques.html" id="Extractions et Statistiques">Statistiques</a></li>
             </ul>
             <section class="logo_en_bas" >
                 <img src="assets/img/logo_sport.jpg">
@@ -52,25 +60,21 @@
             </section>
         </nav>
     </header>
-    <!-- Fin menu de gauche -->
+    <!------------------------------------------------------- Fin menu de gauche -->
 
-    <!-- Debut menu de droite -->
+    <!--------------------------------------------------------- Debut menu de droite -->
     <header id="header1">
         <div class="d-flex flex-column">
             <div class="profile">
-                <img src="assets/img/logo.jpg" alt="" class="img-fluid rounded-circle">
+                <a href="BackofficeAccueil.html" alt="accueil"><img src="assets/img/logo.jpg" alt="" class="img-fluid rounded-circle"></a>
                 <br>
-                <h4 class="text-light"><a href="index.html">~ <span>Application SUAPS</span> ~</a></h4>
+                <h4><a href="BackofficeAccueil.html">~ <span class="btn btn-primary">Application SUAPS</span> ~</a></h4>
             </div>
-
             <br><hr>
-
-
             <nav class="nav-menu">
                 <ul>
                     <li><a><span>Choisissez une offre de formation</span></a></li>
-
-                    <select name="id_offre" OnChange="this.form.submit()" id="formation" class="custom-select form-control">
+                    <select name="id_offre" OnChange="this.form.submit()" id="formation" class="btn btn-warning dropdown-toggle">
                         <option type="text" value="" selected>Suivant les promotions </option>
                         <optgroup label="promotion 2019-2020"></optgroup>
                         <option type="text" value="143">Cours Blois S1</option>
@@ -87,11 +91,8 @@
                         <option type="text" value="143">Stages</option>
                         <option type="text" value="143">Evénements</option>
                     </select>
-
-
-
                     <li><a><span>Choisissez une Activité</span></a></li>
-                    <select name="id_activite" OnChange="this.form.submit()" id="activite" class="custom-select form-control">
+                    <select name="id_activite" OnChange="this.form.submit()" id="activite" class="btn btn-warning dropdown-toggle">
                         <option type="text" value="toutes" selected>Toutes les activités</option>
                         <option type="text" value="SUAPS_1">Badminton</option>
                         <option type="text" value="SUAPS_2">Tennis</option>
@@ -166,39 +167,31 @@
                         <option type="text" value="SportsLoisirDimanches">Sport Loisir Week-End</option>
                         <option type="text" value="StreetJazz">Street Jazz</option>
                     </select>
-
                     <br><br><br/><hr><br>
-
-                    <li class="active"><a><i class="bx bx-home"></i> <span>Votre Page = Parcours Etudiant</span></a></li>
-
+                    <li class="active"><a><i class="bx bx-home"></i> <span>Votre Page = Accueil</span></a></li>
                     <br><hr><br>
-
                     <li><a><i class="bx bx-user"></i> <span >Niveau de débug</span></a></li>
-                    <select name="niveau_debug" id="niv_debug" class="custom-select form-control">
+                    <select name="niveau_debug" id="niv_debug" class="btn btn-warning dropdown-toggle">
                         <option value="Off">Debugg Off</option>
                         <option value="1">Niveau 1</option>
                         <option value="2">Niveau 2</option>
                         <option value="3" selected>Niveau 3</option>
-                        <option value="4">Niveau 4</option>
+                        <option value="4">Niveau 4 </option>
                         <option value="5">Niveau 5</option>
                     </select>
                     <li><a><i class="bx bx-book-content"></i> Base de travail</a></li>
-                    <select name="base"  onChange="document.form2.submit()" class="custom-select form-control">
+                    <select name="base"  onChange="document.form2.submit()" class="btn btn-warning dropdown-toggle">
                         <option value="tours"  ;>Base De Prod.</option>
                         <option alue="testtours" selected>Base de Test</option>
                     </select>
-
-
                 </ul>
             </nav>
-
-
         </div>
     </header>
 
-    <!-- Fin menu de droite -->
+    <!------------------------------------------------------ Fin menu de droite -->
 
-    <!-- Start space Script -->
+    <!------------------------------------------------------ Start space Script -->
     <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
     <script>
         $(function() {
@@ -214,8 +207,13 @@
             $('#datepicker2').datepicker();
         });
     </script>
-    <!-- Fin space Script -->
+    <!--------------------------------------------------- Fin space Script -->
 
 </form>
+</body>
+</html></title>
+</head>
+<body>
+
 </body>
 </html>
